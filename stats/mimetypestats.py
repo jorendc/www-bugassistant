@@ -85,7 +85,7 @@ def get_through_rss_query(queryurl, mimetype):
             print(entry['id'] + " failed: " + str(sys.exc_info()[0]))
             pass
     print("Total count = " + attachCount)
-#
+
     #write it to a log
     file = open("mimetypecount.csv", "a")
     file.write("\"" + time.strftime("%d/%m/%Y") + "\",\"" + str(attachCount) + "\"\n")
