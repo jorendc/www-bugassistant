@@ -28,6 +28,7 @@ import os, os.path
 import stat
 import sys
 import time
+import xmlrpclib
 try:
     from urllib.request import urlopen
 except:
@@ -70,6 +71,27 @@ def get_from_bug_url_via_xml(url, mimetype):
                     break
     return count
 
+def get_through_rpc_query(url, mimetype):
+    id = url.rsplit('=', 2)[1]
+    print(id)
+    query = dict()
+    query['ids'] = id
+    proxy = xmlrpclib.ServerProxy('https://bugs.freedesktop.org/xmlrpc.cgi')
+    result = proxy.Bug.attachments(query)
+    bugs = result['bugs'][id]
+    count = 0
+#    import pprint
+#    pp = pprint.PrettyPrinter(indent=4)
+#    pp.pprint(bugs)
+
+    for bug in bugs:
+        if bug['content_type'] == mimetype:
+            count += 1
+        else
+            continue
+
+    return count
+
 def get_through_rss_query(queryurl, mimetype):
     url = queryurl + '?query_format=advanced&f1=attachments.mimetype&v1=application%2Foctet-stream&o1=equals&product=LibreOffice&ctype=atom'
     print('url is ' + url)
@@ -78,18 +100,19 @@ def get_through_rss_query(queryurl, mimetype):
     attachCount = 0
     for entry in d['entries']:
         try:
-            attachCount = attachCount + get_from_bug_url_via_xml(entry['id'], mimetype)
+            attachCount = attachCount + get_through_rpc_query(entry['id'], mimetype)
         except KeyboardInterrupt:
             raise # Ctrl+C should work
         except:
             print(entry['id'] + " failed: " + str(sys.exc_info()[0]))
             pass
-    print("Total count = " + attachCount)
 
-    #write it to a log
-    file = open("mimetypecount.csv", "a")
-    file.write("\"" + time.strftime("%d/%m/%Y") + "\",\"" + str(attachCount) + "\"\n")
-    file.close()
+        print("Total count = " + str(attachCount))
+
+        #write it to a log
+        file = open("mimetypecount.csv", "a")
+        file.write("\"" + time.strftime("%d/%m/%Y") + "\",\"" + str(attachCount) + "\"\n")
+        file.close()
 
 
 rss_bugzilla = 'http://bugs.libreoffice.org/buglist.cgi'
