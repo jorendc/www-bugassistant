@@ -87,8 +87,6 @@ def get_through_rpc_query(url, mimetype):
     for bug in bugs:
         if bug['content_type'] == mimetype:
             count += 1
-        else
-            continue
 
     return count
 
