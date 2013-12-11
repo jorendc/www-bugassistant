@@ -109,10 +109,10 @@ def get_through_rss_query(queryurl, mimetype):
 
         print("Total count = " + str(attachCount))
 
-        #write it to a log
-        file = open("mimetypecount.csv", "a")
-        file.write("\"" + time.strftime("%d/%m/%Y") + "\",\"" + str(attachCount) + "\"\n")
-        file.close()
+    #write it to a log
+    file = open("mimetypecount.csv", "a")
+    file.write("\"" + time.strftime("%d/%m/%Y") + "\",\"" + str(attachCount) + "\"\n")
+    file.close()
 
 
 rss_bugzilla = 'http://bugs.libreoffice.org/buglist.cgi'
