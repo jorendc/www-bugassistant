@@ -55,10 +55,12 @@ def urlopen_retry(url):
                 raise
             print("retrying...")
 
-f = open('example.txt')
-s = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
-if 'blabla' in s:
-    print 'true'
+def already_parsed(attachmentid)
+    f = open('attachmentidlog.txt')
+    s = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+    if attachmentid in s:
+        return 1
+    return 0
 
 def determine_attachment_mimetype(attachmentid):
     correctmimetype = subprocess.check_output("file --mime-type " + attachmentid, shell=True)
@@ -87,6 +89,10 @@ def get_from_bug_url_via_xml(url, mimetype):
         for node in attachment.childNodes:
             if node.nodeName == 'attachid':
                 attachmentid = node.firstChild.nodeValue
+            
+                if already_parsed(attachmentid):
+                    break
+        
             elif node.nodeName == 'type':
                 #print(node.firstChild.nodeValue, end=' ')
                 if node.firstChild.nodeValue.lower() != mimetype.lower():
@@ -128,6 +134,9 @@ def get_from_bug_url_via_xml(url, mimetype):
                             break
                 print(detectedmimetype)
                 if (breakit == 0):
+                    log = open('attachmentidlog.txt', 'w')
+                    log.write(attachmentid)
+                    log.close()
                     open_attachment_in_browser(attachmentid)
     return count
 
