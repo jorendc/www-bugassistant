@@ -29,6 +29,9 @@ import stat
 import sys
 import time
 import xmlrpclib
+import webbrowser
+import subprocess
+import zipfile
 try:
     from urllib.request import urlopen
 except:
@@ -51,24 +54,75 @@ def urlopen_retry(url):
                 raise
             print("retrying...")
 
+def determine_attachment_mimetype(attachmentid):
+    correctmimetype = subprocess.check_output("file --mime-type " + attachmentid, shell=True)
+#os.system('file --mime-type ' + attachmentid)
+    correctmimetype = correctmimetype.rsplit(' ', 2)[1]
+    #    print("correctmimetype: " + correctmimetype)
+    return correctmimetype
+
+def open_attachment_in_browser(attachmentid):
+    attachmenturl = ("https://bugs.freedesktop.org/attachment.cgi?id=" + attachmentid + "&action=edit")
+    webbrowser.open_new_tab(attachmenturl)
+    input("Press Enter to continue...")
+
 def get_from_bug_url_via_xml(url, mimetype):
     id = url.rsplit('=', 2)[1]
     print("parsing " + id)
+    if id == '64672':
+        return
     sock = urlopen_retry(url+"&ctype=xml")
     dom = minidom.parse(sock)
     sock.close()
     count = 0
+    attachmentid = 0
     for attachment in dom.getElementsByTagName('attachment'):
         #print(" mimetype is", end=' ')
         for node in attachment.childNodes:
-            if node.nodeName == 'type':
+            if node.nodeName == 'attachid':
+                attachmentid = node.firstChild.nodeValue
+            elif node.nodeName == 'type':
                 #print(node.firstChild.nodeValue, end=' ')
                 if node.firstChild.nodeValue.lower() != mimetype.lower():
-                    #print('skipping')
+                    print('skipping')
                     break
-                else:
-                    count = count + 1
+                count += 1
+            elif node.nodeName == 'data':
+                print('downloading ' + attachmentid)
+                f = open(str(attachmentid), 'wb')
+                f.write(base64.b64decode(node.firstChild.nodeValue))
+                f.close()
+                detectedmimetype = determine_attachment_mimetype(attachmentid).strip()
+                if detectedmimetype == mimetype:
                     break
+                breakit = 0
+                for toignore in ignore:
+                    if detectedmimetype == toignore:
+                        print("Nops, we are not looking for this!!")
+                        breakit = 1
+                        break
+                if (detectedmimetype == 'application/zip' or detectedmimetype == 'application/vnd.ms-office'):
+                    print("potential ms-office doc detected! ")
+                    zfile = zipfile.ZipFile("./" +attachmentid)
+                    for item in zfile.namelist():
+                        #print(item)
+                        internaldir = item.rsplit('/', 1)[0]
+                        #print(internaldir)
+                        if internaldir == 'word':
+                            detectedmimetype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                            breakit = 0
+                            break
+                        elif internaldir == 'xl':
+                            detectedmimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                            breakit = 0
+                            break
+                        elif internaldir == 'ppt':
+                            detectedmimetype = 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+                            breakit = 0
+                            break
+                print(detectedmimetype)
+                if (breakit == 0):
+                    open_attachment_in_browser(attachmentid)
     return count
 
 def get_through_rpc_query(url, mimetype):
@@ -84,8 +138,12 @@ def get_through_rpc_query(url, mimetype):
 #    pp = pprint.PrettyPrinter(indent=4)
 #    pp.pprint(bugs)
 
-    for bug in bugs:
-        if bug['content_type'] == mimetype:
+    for attachments in bugs:
+        if attachments['content_type'] == mimetype:
+            attachmentid = attachments['id']
+            f = open(str(attachmentid), 'wb')
+            f.write(attachments['data'])
+            f.close()
             count += 1
 
     return count
@@ -98,7 +156,7 @@ def get_through_rss_query(queryurl, mimetype):
     attachCount = 0
     for entry in d['entries']:
         try:
-            attachCount = attachCount + get_through_rpc_query(entry['id'], mimetype)
+            attachCount = attachCount + get_from_bug_url_via_xml(entry['id'], mimetype)
         except KeyboardInterrupt:
             raise # Ctrl+C should work
         except:
@@ -115,6 +173,7 @@ def get_through_rss_query(queryurl, mimetype):
 
 rss_bugzilla = 'http://bugs.libreoffice.org/buglist.cgi'
 mimetype = 'application/octet-stream'
+ignore = {'text/plain', 'application/xml', 'text/x-c', 'text/x-java', 'text/html', 'summary', 'text/x-c++', 'text/x-diff', 'text/x-pascal', 'text/x-news', 'application/pgp-keys'}
 
 get_through_rss_query(rss_bugzilla, mimetype)
 
