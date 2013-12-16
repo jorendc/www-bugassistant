@@ -32,6 +32,7 @@ import xmlrpclib
 import webbrowser
 import subprocess
 import zipfile
+import mmap
 try:
     from urllib.request import urlopen
 except:
@@ -54,9 +55,14 @@ def urlopen_retry(url):
                 raise
             print("retrying...")
 
+f = open('example.txt')
+s = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+if 'blabla' in s:
+    print 'true'
+
 def determine_attachment_mimetype(attachmentid):
     correctmimetype = subprocess.check_output("file --mime-type " + attachmentid, shell=True)
-#os.system('file --mime-type ' + attachmentid)
+    #os.system('file --mime-type ' + attachmentid)
     correctmimetype = correctmimetype.rsplit(' ', 2)[1]
     #    print("correctmimetype: " + correctmimetype)
     return correctmimetype
@@ -101,7 +107,7 @@ def get_from_bug_url_via_xml(url, mimetype):
                         print("Nops, we are not looking for this!!")
                         breakit = 1
                         break
-                if (detectedmimetype == 'application/zip' or detectedmimetype == 'application/vnd.ms-office'):
+                if (detectedmimetype == 'application/zip'):
                     print("potential ms-office doc detected! ")
                     zfile = zipfile.ZipFile("./" +attachmentid)
                     for item in zfile.namelist():
@@ -134,10 +140,10 @@ def get_through_rpc_query(url, mimetype):
     result = proxy.Bug.attachments(query)
     bugs = result['bugs'][id]
     count = 0
-#    import pprint
-#    pp = pprint.PrettyPrinter(indent=4)
-#    pp.pprint(bugs)
-
+    #    import pprint
+    #    pp = pprint.PrettyPrinter(indent=4)
+    #    pp.pprint(bugs)
+    
     for attachments in bugs:
         if attachments['content_type'] == mimetype:
             attachmentid = attachments['id']
@@ -145,11 +151,11 @@ def get_through_rpc_query(url, mimetype):
             f.write(attachments['data'])
             f.close()
             count += 1
-
+    
     return count
 
 def get_through_rss_query(queryurl, mimetype):
-    url = queryurl + '?query_format=advanced&f1=attachments.mimetype&v1=application%2Foctet-stream&o1=equals&product=LibreOffice&ctype=atom'
+    url = queryurl + '?query_format=advanced&f1=attachments.mimetype&v1=' + mimetype +'&o1=equals&product=LibreOffice&ctype=atom'
     print('url is ' + url)
     d = feedparser.parse(url)
     print(str(len(d['entries'])) + ' bugs to process')
@@ -162,9 +168,9 @@ def get_through_rss_query(queryurl, mimetype):
         except:
             print(entry['id'] + " failed: " + str(sys.exc_info()[0]))
             pass
-
+        
         print("Total count = " + str(attachCount))
-
+    
     #write it to a log
     file = open("mimetypecount.csv", "a")
     file.write("\"" + time.strftime("%d/%m/%Y") + "\",\"" + str(attachCount) + "\"\n")
@@ -172,8 +178,8 @@ def get_through_rss_query(queryurl, mimetype):
 
 
 rss_bugzilla = 'http://bugs.libreoffice.org/buglist.cgi'
-mimetype = 'application/octet-stream'
-ignore = {'text/plain', 'application/xml', 'text/x-c', 'text/x-java', 'text/html', 'summary', 'text/x-c++', 'text/x-diff', 'text/x-pascal', 'text/x-news', 'application/pgp-keys'}
+mimetype = 'text/plain'
+ignore = {'application/xml', 'text/x-c', 'text/x-java', 'text/html', 'summary', 'text/x-c++', 'text/x-diff', 'text/x-pascal', 'text/x-news', 'application/pgp-keys', 'application/vnd.ms-office'}
 
 get_through_rss_query(rss_bugzilla, mimetype)
 
