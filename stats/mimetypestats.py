@@ -55,10 +55,8 @@ def urlopen_retry(url):
                 raise
             print("retrying...")
 
-def already_parsed(attachmentid)
-    f = open('attachmentidlog.txt')
-    s = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
-    if attachmentid in s:
+def already_parsed(attachmentid):
+    if str(attachmentid) in open('parsedlog.txt').read():
         return 1
     return 0
 
@@ -91,6 +89,8 @@ def get_from_bug_url_via_xml(url, mimetype):
                 attachmentid = node.firstChild.nodeValue
             
                 if already_parsed(attachmentid):
+                    print("we already did parse this bastard")
+                    count += 1
                     break
         
             elif node.nodeName == 'type':
@@ -100,6 +100,9 @@ def get_from_bug_url_via_xml(url, mimetype):
                     break
                 count += 1
             elif node.nodeName == 'data':
+                log = open('parsedlog.txt', 'a+')
+                log.write(attachmentid + '\n')
+                log.close()
                 print('downloading ' + attachmentid)
                 f = open(str(attachmentid), 'wb')
                 f.write(base64.b64decode(node.firstChild.nodeValue))
@@ -134,9 +137,6 @@ def get_from_bug_url_via_xml(url, mimetype):
                             break
                 print(detectedmimetype)
                 if (breakit == 0):
-                    log = open('attachmentidlog.txt', 'w')
-                    log.write(attachmentid)
-                    log.close()
                     open_attachment_in_browser(attachmentid)
     return count
 
@@ -188,7 +188,7 @@ def get_through_rss_query(queryurl, mimetype):
 
 rss_bugzilla = 'http://bugs.libreoffice.org/buglist.cgi'
 mimetype = 'text/plain'
-ignore = {'application/xml', 'text/x-c', 'text/x-java', 'text/html', 'summary', 'text/x-c++', 'text/x-diff', 'text/x-pascal', 'text/x-news', 'application/pgp-keys', 'application/vnd.ms-office'}
+ignore = {'application/xml', 'text/x-c', 'text/x-java', 'text/html', 'summary', 'text/x-c++', 'text/x-diff', 'text/x-pascal', 'text/x-news', 'application/pgp-keys', 'application/vnd.ms-office', 'text/x-fortran'}
 
 get_through_rss_query(rss_bugzilla, mimetype)
 
